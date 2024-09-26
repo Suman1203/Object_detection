@@ -1,0 +1,216 @@
+#yolo: you look only once
+#ssd: single short detction
+#here we are using yolo3: darknet
+#currently we have yolo10 version
+#Here i will explain from very scratch
+#but yolo has packages available now: ultralytics
+
+#cfg: configaration file
+#     it has model architecture
+#     how many layers
+#     how many convolution 
+#     batch size/learning rate/ optimizer
+
+# it is transfer learning, we are not devloping the model from scratch
+
+#weight file":
+#    after develop the model we have weight file
+
+# coco:  is a dataset name on which the model developed
+#
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+import os
+#cv2.dnn.readNet("./yolov3-tiny.weights","./yolov3-tiny.cfg")
+modelConf="yolov3-tiny.cfg"
+modelWeights="yolov3-tiny.weights"
+net = cv2.dnn.readNetFromDarknet(modelConf,modelWeights)
+net
+classesFile="coco.names"
+with open(classesFile,'rt') as f:
+    classes = f.read().rstrip('\n').split('\n')
+classes
+len(classes) # number of classes
+l=net.getLayerNames()  # number of layers
+len(l) 
+
+l
+l1=net.getUnconnectedOutLayers()  # yolo layers indexes
+l1
+l[35],l[47]
+l2=net.getUnconnectedOutLayersNames() # yolo layers names
+l2
+### blobfromImage() function
+
+It returns a 4-dimensional array/blob for the input image. 
+You can additionally use it to preprocess your image to match your input requirements. 
+You can use its different parameters to transform your image, 
+
+so let’s discuss all its parameters: 
+    
+**image**
+
+- This is the image that we want to preprocess (for our model)
+    
+**scalefactor**
+
+- scale factor basically multiplies(scales) our image channels. And remember that it scales it down by a factor of 1/n, where n is the scalefactor you provided.
+
+**size**
+
+- this is the target size that we want our image to become. Most common CNNs use 224×224 or 229×229 pixels as their input image array, but you can set it to meet your model requirements.
+
+**mean**
+
+- this is the mean subtracting values. You can input a single value or a 3-item tuple for each channel RGB, it will basically subtract the mean value from all the channels accordingly, this is done to normalize our pixel values. Note: mean argument utilizes the RGB sequence
+
+**swapRB**
+
+   - OpenCV by default reads an image in BGR format, but as I mentioned above that the mean argument takes in the values in RGB sequence, so to prevent any disruption this function, as the name implies swaps the red and blue channels. ( i.e why its default value is True)
+# reshape the image
+inpWidth = 416
+inpHeight = 416
+frame=cv2.imread('./images/dog.jpg')
+# generally image will take as BGR we need to change RGB
+blob = cv2.dnn.blobFromImage(frame, 1/255, (inpWidth, inpHeight), [0,0,0], 1, crop = False) # pass the image
+# Change BGR to RGB
+img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) 
+plt.imshow(img)
+frame.shape 
+blob.shape # blob will take in revrse
+blob[0].shape
+#im=blob[0].reshape(416,416,3)
+#plt.imshow(im)
+net.setInput(blob)
+yolo_layers=net.getUnconnectedOutLayersNames()
+outs = net.forward(yolo_layers)
+outs
+# there two yolo layers are there
+# in image two objects are there
+# we have toatal 80 classes are there
+# we got 85 values 5+80
+# 5 means  x,y,w,h,confidance
+# 80 mean probability of each class
+len(outs) # two objects output
+len(outs[0]) # model is identifies total 507 boxes and predictins
+
+#5+80 
+# first 5 values are the  x,y,w,h and confidence for the first box
+# remaining 80 are the classes
+len(outs[0][0])  # 85 values
+list(outs[0][0])[:5]
+list(outs[0][0])[5:]
+outs[0][5]
+**Detect the Bounding Boxes**
+
+Those are what are called normalized coordinates. 
+
+To get the width in pixels you would need to multiply by the width of the images
+frameHeight = frame.shape[0]
+frameWidth = frame.shape[1]
+boxes=[]
+confidences=[]
+classIDs=[]
+for out in outs: # calling each object boxes
+    for detection in out: # calling each box
+        score=detection[5:] # probability of 80 classes
+        class_id=np.argmax(score) # max probability id
+        confidence=score[class_id] # getting the confidance
+        if confidence>0.7:         # if confidance >70% consider as that is valid bounding box
+            print(detection)
+            centerX = int(detection[0] * frameWidth)  # before we pass the object we divided with frame width
+            # these are the normalized values so multiply again
+            centerY = int(detection[1] * frameHeight)
+            width = int(detection[2]* frameWidth)
+            height = int(detection[3]*frameHeight )
+            left = int(centerX - width/2)
+            top = int(centerY - height/2)
+
+            classIDs.append(class_id)
+            confidences.append(float(confidence))
+            boxes.append([left, top, width, height])
+            
+boxes
+len(outs[0]),len(outs[1])
+507+2028
+confidences
+**NMS: Non Max suppresion**
+indexes=cv2.dnn.NMSBoxes(boxes,confidences,0.5,0.4)
+indexes  # surprass many boxes
+**Apply the Bounding Box**
+font=cv2.FONT_HERSHEY_SIMPLEX
+color=(255,0,0) # RGB
+for i in indexes:
+    x,y,w,h=boxes[i]
+    label=str(classes[classIDs[i]])
+    confi=str(round(confidences[i],2))
+    #color=colors[i]
+    cv2.rectangle(img,(x,y),(x+w,y+h),color,5,i)   # (x,y): left,top     (x+w,y+h): right,bottom
+    cv2.putText(img,label +" "+confi,(x,y),font,2,(255,255,255),3)
+plt.imshow(img)
+## Method-1:
+    
+**Bounding box on images**
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+import os
+def post_process(frame,outs,img,classes):
+    frameHeight = frame.shape[0]
+    frameWidth = frame.shape[1]
+    boxes=[]
+    confidences=[]
+    classIDs=[]
+    for out in outs: # calling each object boxes
+        for detection in out: # calling each box
+            score=detection[5:] # probability of 80 classes
+            class_id=np.argmax(score) # max probability id
+            confidence=score[class_id] # getting the confidance
+            if confidence>0.7:         # if confidance >70% consider as that is valid bounding box
+                centerX = int(detection[0] * frameWidth)  # before we pass the object we divided with frame width
+                # these are the normalized values so multiply again
+                centerY = int(detection[1] * frameHeight)
+                width = int(detection[2]* frameWidth)
+                height = int(detection[3]*frameHeight )
+                left = int(centerX - width/2)
+                top = int(centerY - height/2)
+                classIDs.append(class_id)
+                confidences.append(float(confidence))
+                boxes.append([left, top, width, height])
+                
+    indexes=cv2.dnn.NMSBoxes(boxes,confidences,0.5,0.4)
+    font=cv2.FONT_HERSHEY_SIMPLEX
+    color=(255,0,0) # RGB
+    for i in indexes:
+        x,y,w,h=boxes[i]
+        label=str(classes[classIDs[i]])
+        confi=str(round(confidences[i],2))
+        cv2.rectangle(img,(x,y),(x+w,y+h),color,5,i)   # (x,y): left,top     (x+w,y+h): right,bottom
+        cv2.putText(img,label +" "+confi,(x,y),font,2,(255,255,255),3)
+    plt.imshow(img)
+
+
+# All at one place
+modelConf="yolov3-tiny.cfg"
+modelWeights="yolov3-tiny.weights"
+classesFile="coco.names"
+image='./images/horses.jpg'
+def yolo_out(modelConf,modelWeights,classesFile,image):
+    net = cv2.dnn.readNetFromDarknet(modelConf,modelWeights)
+    with open(classesFile,'rt') as f:
+        classes = f.read().rstrip('\n').split('\n')
+
+    inpWidth = 416
+    inpHeight = 416
+
+    frame=cv2.imread(image)
+    img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) 
+
+    blob = cv2.dnn.blobFromImage(frame, 1/255, (inpWidth, inpHeight), [0,0,0], 1, crop = False) # pass the image
+    net.setInput(blob)
+    yolo_layers=net.getUnconnectedOutLayersNames()
+    outs = net.forward(yolo_layers)
+    post_process(frame,outs,img,classes)
+
+yolo_out(modelConf,modelWeights,classesFile,image)
