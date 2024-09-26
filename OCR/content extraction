@@ -1,0 +1,169 @@
+### Optical character recognition(OCR):
+- OCR is used to extract text from any printed document
+
+- any image
+
+- any scanned document
+
+- OCR can implemented by many methods, in that one of method is tessract
+### Implementation of tessract
+
+1. Install tesseract using windows installer available at: 
+    
+        https://github.com/UB-Mannheim/tesseract/wiki
+                      
+2. While install notedown the path: It mostly :
+        
+        C:\Program Files\Tesseract-OCR
+
+
+3. pip install pytesseract
+
+
+4. Set the tesseract path in the script before calling image_to_string:
+
+         pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+import cv2
+import pytesseract
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+dir(pytesseract)
+### Case-1
+# Pillow 
+from PIL import Image
+img_location = 'invoice-sample.jpg'
+image = Image.open(img_location)
+image
+# CV2
+img = cv2.imread('invoice-sample.jpg')
+cv2.imshow('img', img)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+img.shape
+
+# 1150 : height
+# 835: width
+# 3: RGB
+#print(pytesseract.image_to_boxes(image) )  # bounding boxes of each letter
+#print(pytesseract.image_to_data(image) )
+#print(pytesseract.image_to_string(image) )
+print(pytesseract.image_to_boxes(image))
+
+# bounding boxes : rectangula box of each letter
+print(pytesseract.image_to_data(image))
+# save into text file
+# info='file.txt'
+# with open(info,'w') as file:
+#     file.write(pytesseract.image_to_data(image))
+
+print(pytesseract.image_to_string(image))
+# save into text file
+info='ocr_invoice_output.txt'
+with open(info,'w') as file:
+    file.write(pytesseract.image_to_string(image))
+boxes = pytesseract.image_to_boxes(image)
+boxes.splitlines()
+# CV2
+img = cv2.imread('invoice-sample.jpg')
+h, w, c = img.shape
+h,w,c
+# height=1150
+#w=835
+
+#59 
+#1150-951 
+#67 
+#1150-960
+
+img=cv2.imread(img_location,
+               cv2.COLOR_BGR2GRAY)
+
+start_window=(59,67)
+end_window= (199,190)
+color=(0,0,255)
+thikness=5
+rec_image=cv2.rectangle(img,
+              start_window,
+              end_window,
+              color,
+              thikness)
+
+cv2.imshow("image",rec_image)
+
+cv2.waitKey(0)         
+cv2.destroyAllWindows()
+
+# This is the problem 
+# we need to provide correct values of start window and end window
+boxes = pytesseract.image_to_boxes(image) 
+boxes.splitlines()[0].split(' ')
+
+img = cv2.imread('invoice-sample.jpg')
+
+h, w, c = img.shape
+h,w,c
+img = cv2.imread('invoice-sample.jpg')
+
+h, w, c = img.shape
+boxes = pytesseract.image_to_boxes(img) 
+for b in boxes.splitlines():
+    b = b.split(' ')
+    #I 128 983 163 1063 
+    img = cv2.rectangle(img, 
+                        (int(b[1]), h - int(b[2])), (int(b[3]), h - int(b[4])), 
+                        # 128,1150-983,163,1150-1063
+                        # 128,167,163,87
+                        (0, 255, 0), 
+                        1)
+
+cv2.imshow('img', img)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+import matplotlib.pyplot as plt
+plt.imshow(img)
+#b[1]=128
+#b[2]=1150-983
+#b[3]=163
+#b[4]=1150-1063
+
+#128,167,163,87
+#128	83	358	86
+#### Case-2
+import cv2
+import pytesseract
+from pytesseract import Output
+
+img = cv2.imread('invoice-sample.jpg')
+
+
+d = pytesseract.image_to_data(img, output_type=Output.DICT)
+print(d.keys())
+d['text']
+n_boxes = len(d['text'])
+n_boxes
+n_boxes = len(d['text'])
+for i in range(n_boxes):
+    if int(d['conf'][i]) >30:
+        # x=128    y=83    w=358    h=86
+        # (128,83) (486,169)
+        (x, y, w, h) = (d['left'][i], d['top'][i], d['width'][i], d['height'][i])
+        img = cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+cv2.imshow('img', img)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+### Case-3:
+img=r"test-image-for-recognition.jpg"
+import pytesseract
+import cv2
+import matplotlib.pyplot as plt
+from PIL import Image
+# read the image using OpenCV
+#image = cv2.imread(img)
+# or you can use Pillow
+image = Image.open(img)
+image
+# get the string
+string = pytesseract.image_to_string(image)
+# print it
+print(string)
+
